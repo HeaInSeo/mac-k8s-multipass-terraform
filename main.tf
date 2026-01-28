@@ -68,9 +68,11 @@ resource "null_resource" "init_cluster" {
   depends_on = [null_resource.masters]
 
   triggers = {
-    script_sha  = local.cluster_init_sha
-    run_sha     = local.run_remote_sha
-    name_prefix = var.name_prefix
+    script_sha   = local.cluster_init_sha
+    run_sha      = local.run_remote_sha
+    name_prefix  = var.name_prefix
+    masters      = tostring(var.masters)
+    master0_name = "${var.name_prefix}-master-0"
   }
 
   provisioner "local-exec" {
