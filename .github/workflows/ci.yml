@@ -1,0 +1,67 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  tofu-plan:
+    name: tofu fmt/validate/plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_wrapper: false
+
+      - name: Show tofu version
+        run: tofu --version
+
+      - name: tofu fmt (check)
+        run: tofu fmt -check -recursive
+
+      - name: tofu init (no backend)
+        run: tofu init -backend=false
+
+      - name: tofu validate
+        run: tofu validate
+
+      # plan에서 null_resource/local-exec는 실행되지 않음 (안전)
+      - name: tofu plan (no refresh)
+        run: tofu plan -input=false -lock=false -refresh=false -no-color
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run shellcheck (best-effort)
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          files=( *.sh shell/*.sh scripts/*.sh )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No shell scripts found; skip."
+            exit 0
+          fi
+
+          shellcheck -x "${files[@]}"

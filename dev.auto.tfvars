@@ -1,0 +1,10 @@
+name_prefix     = "k8s"
+masters         = 1
+workers         = 2
+master_memory   = "3G"
+worker_memory   = "2G"
+master_cpus     = 2
+worker_cpus     = 2
+master_disk     = "40G"
+worker_disk     = "50G"
+kubeconfig_path = "./kubeconfig"

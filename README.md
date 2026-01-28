@@ -1,14 +1,32 @@
-# Kubernetes Multi-Node Cluster on macOS (Multipass + Terraform)
+# Kubernetes Multi-Node Cluster (Multipass + OpenTofu/Terraform)
+
+
 
 해당 프로젝트는 **macOS (M1/M2 포함)** 환경에서 기존 UTM 기반으로 설치하는 방법 대신 Multipass, Terraform을 이용하여 다음과 같은 **Kubernetes 멀티 노드 클러스터 환경**을 자동으로 구축하는데 그 목적을 둔다.
 
-## 사전 설치 사항
+추가적으로, Ubutnu 환경을 추가하였고, Multipass VM 위에 `kubeadm` 기반 멀티 노드 Kubernetes 클러스터를 구성한다. Multipass 전용 Terraform/OpenTofu provider가 사실상 표준으로 자리잡지 않은 환경을 고려해, **`null_resource + local-exec`** 방식으로 VM 생성/삭제/초기화/조인을 자동화 한다.
+
+## 요구 사항
+
+필수:
+- **OpenTofu >= 1.6** (또는 Terraform >= 1.6)
+- **Multipass**
+- `bash`
+
+권장(클러스터 확인/운영):
+- `kubectl`
+
+Add-on(선택):
+- `helm`
+- `istioctl` (Istio 설치 시)
+
+## 사전 설치 사항 (삭제 요암 일단 남겨둠.)
 - Terraform v1.11.3 이상 : [Terraform 설치 링크](https://developer.hashicorp.com/terraform/install)
 - multipass v1.15.1+mac : [multipass 설치 링크](https://canonical.com/multipass)
 - istioctl v1.26.2 :  [istioctl 설치 링크](https://formulae.brew.sh/formula/istioctl)
 - helm : [helm 설치 링크](https://helm.sh/ko/docs/intro/install/)
 
-## 구성 요소
+## 구성 요소 (삭제 요망 일단 남겨둠.)
 | 구성 요소 | 수량 | 설명 |
 |-----------|------|------|
 | Control Plane (Master) | 3대 | 고가용성 멀티 마스터 |
@@ -23,17 +41,22 @@
 ```
 .
 ├── init/
-│   ├── k8s.yaml             # K8s용 cloud-init
-│   ├── redis.yaml           # Redis VM용 cloud-init
-│   └── mysql.yaml           # MySQL VM용 cloud-init
+│   ├── k8s.yaml                # K8s용 cloud-init
+│   ├── redis.yaml              # Redis VM용 cloud-init
+│   └── mysql.yaml              # MySQL VM용 cloud-init
 ├── shell/
-│   ├── cluster-init.sh      # kubeadm init 실행
-│   ├── join-all.sh          # Master/Worker 자동 Join
-│   ├── redis-install.sh     # Redis 패스워드 설정
-│   └── mysql-install.sh     # MySQL 루트/유저/DB 설정
-├── main.tf                  # Terraform 메인 구성
-├── variables.tf             # Redis/MySQL 계정/포트 변수
-└── README.md                # 사용 설명서
+|   ├── multipass-launch.sh     # VM 생성 래퍼
+│   ├── multipass-delete.sh     # VM 삭제 래퍼(개별 VM만)
+│   ├── multipass-run-remote.sh # 로컬 스크립트를 VM에서 실행
+│   ├── cluster-init.sh         # kubeadm init 실행 (master-0에서 실행)
+│   ├── join-all.sh             # # master/worker join + kubeconfig export
+│   ├── delete-vm.sh            # (옵션) 로컬 VM 정리 스크립트
+│   ├── redis-install.sh        # Redis 패스워드 설정
+│   └── mysql-install.sh        # MySQL 루트/유저/DB 설정
+├── main.tf                     # Terraform 메인 구성
+├── variables.tf                # Redis/MySQL 계정/포트 변수
+├── README.md                   # 사용 설명서
+└── dev.auto.tfvars             # (선택) 개발용 설정 자동 로드
 ```
 
 ## 설치 방법
@@ -42,13 +65,26 @@
 ```bash
 terraform init && terraform plan
 terraform apply -auto-approve
-```
 
-### 2. 전체 삭제
+# 또는 현재 opentofu 적용 가능
+tofu fmt
+tofu init
+tofu apply -auto-approve
+
+```
+### 2. 전체 삭제 
 ```bash
 terraform destroy -auto-approve
 rm -rf .terraform .terraform.lock.hcl terraform.tfstate* kubeconfig
+
+# 또는 opentofu
+tofu destroy -auto-approve
+# 로컬 파일 정리(지우면 로컬 파일이 다 삭제됨.)
+rm -rf .terraform .terraform.lock.hcl tofu.tfstate* tofu.tfstate.d kubeconfig
+
 ```
+⚠️ 주의: delete-vm.sh 같은 스크립트는 구현에 따라 “전체 VM 삭제”가 될 수 있으니,
+실행 전에 반드시 내용을 확인해야함.(특히 multipass delete --all / multipass purge).
 
 ## 🔐 Redis/MySQL 접속 정보
 
@@ -66,6 +102,14 @@ Terraform `variables.tf` 에 정의된 기본값 기준으로 세팅
 - Password: `finalyzerpass`
 - Database: `finalyzer`
 
+### kubeconfig 사용
+- join-all.sh 실행 후 kubeconfig_path에 kubeconfig가 생성된다.
+
+```bash
+export KUBECONFIG=./kubeconfig
+kubectl get nodes -o wide
+
+```
 ---
 
 # 🔧 Add-ons 설치 가이드 (`addon`)

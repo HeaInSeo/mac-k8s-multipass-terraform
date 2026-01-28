@@ -43,3 +43,7 @@ secrets.env
 #join shell
 ./shell/join-controlplane.sh
 ./shell/join.sh
+
+# gitHub workflow files
+github-workflow.json
+

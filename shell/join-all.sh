@@ -1,31 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
 
-#!/bin/bash
+NAME_PREFIX="${NAME_PREFIX:-k8s}"
+MASTERS="${MASTERS:-3}"
+WORKERS="${WORKERS:-3}"
+KUBECONFIG_PATH="${KUBECONFIG_PATH:-./kubeconfig}"
 
-# Master-0에서 join 스크립트 추출
-multipass transfer k8s-master-0:/home/ubuntu/join.sh ./shell/join.sh
-multipass transfer k8s-master-0:/home/ubuntu/join-controlplane.sh ./shell/join-controlplane.sh
+need() { command -v "$1" >/dev/null 2>&1 || { echo "missing: $1" >&2; exit 1; }; }
+need multipass
 
-# Control Plane Join (1, 2)
-for i in 1 2; do
-  multipass transfer ./shell/join-controlplane.sh k8s-master-${i}:/home/ubuntu/join-controlplane.sh
-  multipass exec k8s-master-${i} -- bash -c "chmod +x /home/ubuntu/join-controlplane.sh && sudo bash /home/ubuntu/join-controlplane.sh"
-done
+MASTER0="${NAME_PREFIX}-master-0"
 
-# Worker Join (0 ~ 2)
-for i in {0..2}; do
-  multipass transfer ./shell/join.sh k8s-worker-${i}:/home/ubuntu/join.sh
-  multipass exec k8s-worker-${i} -- bash -c "chmod +x /home/ubuntu/join.sh && sudo bash /home/ubuntu/join.sh"
-done
+tmpdir="$(mktemp -d)"
+cleanup() { rm -rf "$tmpdir"; }
+trap cleanup EXIT
 
-multipass exec k8s-master-0 -- bash -c "\
+JOIN_SH="${tmpdir}/join.sh"
+JOIN_CP_SH="${tmpdir}/join-controlplane.sh"
+
+echo "[INFO] Fetch join scripts from ${MASTER0}"
+multipass transfer "${MASTER0}":/home/ubuntu/join.sh "${JOIN_SH}"
+multipass transfer "${MASTER0}":/home/ubuntu/join-controlplane.sh "${JOIN_CP_SH}"
+chmod +x "${JOIN_SH}" "${JOIN_CP_SH}"
+
+# Control-plane join (master-1 .. master-(MASTERS-1))
+if [ "${MASTERS}" -gt 1 ]; then
+  echo "[INFO] Join control-planes: 1..$((MASTERS - 1))"
+  for ((i=1; i<MASTERS; i++)); do
+    m="${NAME_PREFIX}-master-${i}"
+    multipass transfer "${JOIN_CP_SH}" "${m}":/home/ubuntu/join-controlplane.sh
+    multipass exec "${m}" -- bash -lc "chmod +x /home/ubuntu/join-controlplane.sh && sudo bash /home/ubuntu/join-controlplane.sh"
+  done
+fi
+
+# Worker join (worker-0 .. worker-(WORKERS-1))
+if [ "${WORKERS}" -gt 0 ]; then
+  echo "[INFO] Join workers: 0..$((WORKERS - 1))"
+  for ((i=0; i<WORKERS; i++)); do
+    w="${NAME_PREFIX}-worker-${i}"
+    multipass transfer "${JOIN_SH}" "${w}":/home/ubuntu/join.sh
+    multipass exec "${w}" -- bash -lc "chmod +x /home/ubuntu/join.sh && sudo bash /home/ubuntu/join.sh"
+  done
+fi
+
+# Pull kubeconfig to local path
+echo "[INFO] Export kubeconfig from ${MASTER0} -> ${KUBECONFIG_PATH}"
+multipass exec "${MASTER0}" -- bash -lc "\
   sudo mkdir -p /home/ubuntu/.kube && \
   sudo cp /etc/kubernetes/admin.conf /home/ubuntu/.kube/config && \
   sudo chown ubuntu:ubuntu /home/ubuntu/.kube/config"
 
-multipass transfer k8s-master-0:/home/ubuntu/.kube/config ~/kubeconfig
+mkdir -p "$(dirname "${KUBECONFIG_PATH}")" 2>/dev/null || true
+multipass transfer "${MASTER0}":/home/ubuntu/.kube/config "${KUBECONFIG_PATH}"
 
-echo 'export KUBECONFIG=~/kubeconfig' >> ~/.zshrc
-source ~/.zshrc
-
-rm -rf ./shell/join-controlplane.sh
-rm -rf ./shell/join.sh
+echo "[OK] kubeconfig written: ${KUBECONFIG_PATH}"
+echo "     export KUBECONFIG=${KUBECONFIG_PATH}"
