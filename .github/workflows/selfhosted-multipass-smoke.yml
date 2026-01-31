@@ -33,7 +33,7 @@ jobs:
       - name: Multipass service check
         run: |
           set -euo pipefail
-          sudo -n systemctl is-active snap.multipass.multipassd
+          sudo -n /usr/bin/systemctl is-active snap.multipass.multipassd
           sudo -n /snap/bin/multipass version
 
       - name: Multipass sanity
