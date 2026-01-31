@@ -28,7 +28,13 @@ jobs:
           uname -a
           echo "PATH=$PATH"
           id
-          sudo -n true
+          # sudo -n true
+      
+      - name: Multipass service check
+        run: |
+          set -euo pipefail
+          sudo systemctl is-active snap.multipass.multipassd
+          sudo /snap/bin/multipass version
 
       - name: Multipass sanity
         run: |
@@ -49,12 +55,19 @@ jobs:
       - name: Launch test VM
         run: |
           set -euo pipefail
+
+          # 혹시 이전 찌꺼기 있으면 제거(안전)
+          sudo /snap/bin/multipass delete gha-smoke >/dev/null 2>&1 || true
+          sudo /snap/bin/multipass purge || true
+          
           sudo /snap/bin/multipass launch \
             --name gha-smoke \
             --cpus 2 \
             --memory 2G \
             --disk 10G
+
           sudo /snap/bin/multipass list
+          sudo /snap/bin/multipass info gha-smoke || true
           sudo /snap/bin/multipass exec gha-smoke -- uname -a
           sudo /snap/bin/multipass exec gha-smoke -- bash -lc 'cloud-init status --wait || true'
 
@@ -66,3 +79,13 @@ jobs:
           sudo /snap/bin/multipass delete gha-smoke
           sudo /snap/bin/multipass purge
           sudo /snap/bin/multipass list || true
+
+      - name: Final cleanup (best effort)
+        if: always()
+        run: |
+          set +e
+          sudo /snap/bin/multipass stop --all
+          sudo /snap/bin/multipass delete --all
+          sudo /snap/bin/multipass purge
+          sudo /snap/bin/multipass list || true
+
