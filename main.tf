@@ -25,12 +25,11 @@ bash shell/multipass-launch.sh "${self.triggers.name}" "${self.triggers.image}" 
 EOT
   }
 
-  # (2) masters에도 destroy 추가
+  # masters에도 destroy 추가
   provisioner "local-exec" {
     when    = destroy
     command = <<EOT
-set -e
-bash shell/multipass-delete.sh "${self.triggers.name}"
+bash shell/multipass-delete.sh "${self.triggers.name}" || true
 EOT
   }
 }
@@ -84,7 +83,7 @@ EOT
 }
 
 resource "null_resource" "join_all" {
-  # (3) init/workers 순서 정리: join은 "둘 다" 끝나야 수행
+  # init/workers 순서 정리: join은 "둘 다" 끝나야 수행
   depends_on = [null_resource.workers, null_resource.init_cluster]
 
   triggers = {

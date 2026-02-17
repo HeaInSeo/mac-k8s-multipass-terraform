@@ -24,6 +24,14 @@ write_files:
       net.bridge.bridge-nf-call-ip6tables = 1
 
 runcmd:
+  # Disable swap (required by kubelet defaults)
+  - swapoff -a
+  # Persist: comment out any swap entries in /etc/fstab (e.g., /swapfile)
+  - sed -ri '/\sswap\s/s/^#?/#/' /etc/fstab
+  - grep -nE '\sswap\s' /etc/fstab || true
+  # Persist (systemd): mask any swap units (e.g., swapfile.swap, dev-*.swap)
+  - systemctl list-units --type=swap --all --no-legend | awk '{print $1}' | xargs -r systemctl mask --now
+  - systemctl list-units --type=swap --all --no-pager || true
   - modprobe overlay
   - modprobe br_netfilter
   - sysctl --system

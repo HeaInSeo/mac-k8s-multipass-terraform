@@ -2,19 +2,24 @@
 set -euo pipefail
 
 MASTER_IP="$(hostname -I | awk '{print $1}')"
-
+if [ -f /etc/kubernetes/admin.conf ]; then
+  echo "[INFO] kubeadm already initialized; skip init"
+else
 sudo kubeadm init \
   --control-plane-endpoint "${MASTER_IP}:6443" \
   --upload-certs \
   --pod-network-cidr=10.244.0.0/16
+fi
 
 mkdir -p "$HOME/.kube"
 sudo cp /etc/kubernetes/admin.conf "$HOME/.kube/config"
 sudo chown "$(id -u)":"$(id -g)" "$HOME/.kube/config"
 
-# flannel
-kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
-
+# flannel 찾아보자.
+# kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+# 향후 버전은 적용가능한 버전으로 맞추어야 한다.
+kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/v0.26.0/Documentation/kube-flannel.yml
+kubectl -n kube-system rollout status ds/kube-flannel-ds --timeout=180s || true
 # worker join script
 JOIN_CMD="$(sudo kubeadm token create --print-join-command)"
 echo "sudo ${JOIN_CMD}" | sudo tee /home/ubuntu/join.sh >/dev/null
