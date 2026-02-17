@@ -21,7 +21,7 @@ resource "null_resource" "masters" {
   provisioner "local-exec" {
     command = <<EOT
 set -e
-bash shell/multipass-launch.sh "${self.triggers.name}" "${self.triggers.image}" "${self.triggers.mem}" "${self.triggers.disk}" "${self.triggers.cpus}" "init/k8s.yaml"
+RECREATE_ON_DIFF=${var.recreate_on_diff ? 1 : 0} bash shell/multipass-launch.sh "${self.triggers.name}" "${self.triggers.image}" "${self.triggers.mem}" "${self.triggers.disk}" "${self.triggers.cpus}" "init/k8s.yaml"
 EOT
   }
 
@@ -50,15 +50,14 @@ resource "null_resource" "workers" {
   provisioner "local-exec" {
     command = <<EOT
 set -e
-bash shell/multipass-launch.sh "${self.triggers.name}" "${self.triggers.image}" "${self.triggers.mem}" "${self.triggers.disk}" "${self.triggers.cpus}" "init/k8s.yaml"
+RECREATE_ON_DIFF=${var.recreate_on_diff ? 1 : 0} bash shell/multipass-launch.sh "${self.triggers.name}" "${self.triggers.image}" "${self.triggers.mem}" "${self.triggers.disk}" "${self.triggers.cpus}" "init/k8s.yaml"
 EOT
   }
 
   provisioner "local-exec" {
     when    = destroy
     command = <<EOT
-set -e
-bash shell/multipass-delete.sh "${self.triggers.name}"
+bash shell/multipass-delete.sh "${self.triggers.name}" || true
 EOT
   }
 }
@@ -72,6 +71,15 @@ resource "null_resource" "init_cluster" {
     name_prefix  = var.name_prefix
     masters      = tostring(var.masters)
     master0_name = "${var.name_prefix}-master-0"
+    # VM 재생성/환경 변화에 join-all도 따라가도록
+    cloud_init_sha = local.k8s_cloud_init_sha
+    # 이미지가 바뀌면, 재실행 되도록
+    image          = var.multipass_image
+    master_mem     = var.master_memory
+    master_cpus    = tostring(var.master_cpus)
+    master_disk    = var.master_disk
+    # 옵션: 이 플래그를 켜고 끌 때도 join-all 재실행 유도
+    recreate_on_diff = tostring(var.recreate_on_diff)
   }
 
   provisioner "local-exec" {
@@ -92,6 +100,22 @@ resource "null_resource" "join_all" {
     masters     = tostring(var.masters)
     workers     = tostring(var.workers)
     kubeconfig  = var.kubeconfig_path
+
+    # VM 재생성/환경 변화에 join-all도 따라가도록
+    cloud_init_sha   = local.k8s_cloud_init_sha
+    # 이미지가 바뀌면, 재실행 되도록
+    image            = var.multipass_image
+
+    master_mem       = var.master_memory
+    master_cpus      = tostring(var.master_cpus)
+    master_disk      = var.master_disk
+
+    worker_mem       = var.worker_memory
+    worker_cpus      = tostring(var.worker_cpus)
+    worker_disk      = var.worker_disk
+
+    # 옵션: 이 플래그를 켜고 끌 때도 join-all 재실행 유도
+    recreate_on_diff = tostring(var.recreate_on_diff)
   }
 
   provisioner "local-exec" {

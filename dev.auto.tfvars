@@ -5,3 +5,4 @@ master_memory   = "2G"
 master_cpus     = 2
 master_disk     = "20G"
 kubeconfig_path = "./kubeconfig"
+recreate_on_diff = true

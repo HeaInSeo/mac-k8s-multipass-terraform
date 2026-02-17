@@ -63,3 +63,9 @@ variable "kubeconfig_path" {
   type        = string
   default     = "./kubeconfig"
 }
+
+variable "recreate_on_diff" {
+  description = "VM이 이미 존재할 때 스펙(mem/cpu/disk 등)이 다르면 삭제 후 재생성할지 여부"
+  type        = bool
+  default     = false
+}

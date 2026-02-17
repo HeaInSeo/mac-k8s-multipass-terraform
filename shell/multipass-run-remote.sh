@@ -18,5 +18,6 @@ echo "[INFO] transfer $local_script -> ${vm}:${remote_path}"
 multipass transfer "$local_script" "${vm}:${remote_path}"
 
 echo "[INFO] exec on $vm: sudo bash $remote_path"
-multipass exec "$vm" -- bash -lc "chmod +x '$remote_path' && sudo bash '$remote_path'"
+# multipass exec "$vm" -- bash -lc "chmod +x '$remote_path' && sudo bash '$remote_path'"
+multipass exec "$vm" -- bash -lc "chmod +x '$remote_path' && sudo ALLOW_SCHEDULE_ON_CP=1 bash '$remote_path'"
 echo "[OK] ran $local_script on $vm"

@@ -7,15 +7,15 @@ mem="${3:?mem required}"
 disk="${4:?disk required}"
 cpus="${5:?cpus required}"
 cloud_init="${6:?cloud-init path required}"
-
+# TODO 수정 필요.
 if ! command -v multipass >/dev/null 2>&1; then
   echo "multipass not found" >&2
   exit 1
 fi
 
 if multipass info "$name" >/dev/null 2>&1; then
-  # VM이 이미 존재하면 새로 만들지 않고, cloud-init(패키지 설치/설정)이 끝났는지만 확인/대기한다.
-  # (기존 VM이 아직 초기화 중일 수 있어서, 다음 단계가 너무 빨리 실행되면 실패할 수 있음)
+# VM이 이미 존재하면 새로 만들지 않고, cloud-init(패키지 설치/설정)이 끝났는지만 확인/대기한다.
+# (기존 VM이 아직 초기화 중일 수 있어서, 다음 단계가 너무 빨리 실행되면 실패할 수 있음)
   echo "[INFO] $name already exists; ensure cloud-init finished"
   multipass exec "$name" -- bash -lc 'command -v cloud-init >/dev/null && sudo cloud-init status --wait || true'
   exit 0

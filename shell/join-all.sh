@@ -29,7 +29,13 @@ if [ "${MASTERS}" -gt 1 ]; then
   for ((i=1; i<MASTERS; i++)); do
     m="${NAME_PREFIX}-master-${i}"
     multipass transfer "${JOIN_CP_SH}" "${m}":/home/ubuntu/join-controlplane.sh
-    multipass exec "${m}" -- bash -lc "chmod +x /home/ubuntu/join-controlplane.sh && sudo bash /home/ubuntu/join-controlplane.sh"
+    # multipass exec "${m}" -- bash -lc "chmod +x /home/ubuntu/join-controlplane.sh && sudo bash /home/ubuntu/join-controlplane.sh"
+    multipass exec "${m}" -- bash -lc "\
+      if [ -f /etc/kubernetes/kubelet.conf ]; then \
+        echo '[INFO] already joined; skip'; \
+      else \
+        chmod +x /home/ubuntu/join-controlplane.sh && sudo bash /home/ubuntu/join-controlplane.sh; \
+      fi"
   done
 fi
 
@@ -39,7 +45,13 @@ if [ "${WORKERS}" -gt 0 ]; then
   for ((i=0; i<WORKERS; i++)); do
     w="${NAME_PREFIX}-worker-${i}"
     multipass transfer "${JOIN_SH}" "${w}":/home/ubuntu/join.sh
-    multipass exec "${w}" -- bash -lc "chmod +x /home/ubuntu/join.sh && sudo bash /home/ubuntu/join.sh"
+    # multipass exec "${w}" -- bash -lc "chmod +x /home/ubuntu/join.sh && sudo bash /home/ubuntu/join.sh"
+    multipass exec "${w}" -- bash -lc "\
+      if [ -f /etc/kubernetes/kubelet.conf ]; then \
+        echo '[INFO] already joined; skip'; \
+      else \
+        chmod +x /home/ubuntu/join.sh && sudo bash /home/ubuntu/join.sh; \
+      fi"
   done
 fi
 
