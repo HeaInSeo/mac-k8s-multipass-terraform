@@ -124,9 +124,23 @@ print_next_steps() {
   warn "On low-RAM laptops, start with workers=0 or workers=1 in dev.auto.tfvars."
 }
 
+ensure_python3() {
+  say "=== [0] Install Python3 (host; required for mp_spec.py) ==="
+  if need_cmd python3; then
+    ok "python3 already installed: $(python3 --version 2>&1)"
+    return 0
+  fi
+
+  # Ubuntu/Debian
+  sudo apt-get update
+  sudo apt-get install -y python3 python3-venv python3-pip
+  ok "python3 installed: $(python3 --version 2>&1)"
+}
+
 main() {
   require_linux_ubuntu
   ensure_apt_basics
+  ensure_python3
   ensure_opentofu
   ensure_multipass
   ensure_kubectl_optional

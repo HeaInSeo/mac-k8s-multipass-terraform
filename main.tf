@@ -19,6 +19,7 @@ resource "null_resource" "masters" {
   }
 
   provisioner "local-exec" {
+    working_dir = path.module
     command = <<EOT
 set -e
 RECREATE_ON_DIFF=${var.recreate_on_diff ? 1 : 0} bash shell/multipass-launch.sh "${self.triggers.name}" "${self.triggers.image}" "${self.triggers.mem}" "${self.triggers.disk}" "${self.triggers.cpus}" "init/k8s.yaml"
@@ -28,6 +29,7 @@ EOT
   # masters에도 destroy 추가
   provisioner "local-exec" {
     when    = destroy
+    working_dir = path.module
     command = <<EOT
 bash shell/multipass-delete.sh "${self.triggers.name}" || true
 EOT
@@ -48,6 +50,7 @@ resource "null_resource" "workers" {
   }
 
   provisioner "local-exec" {
+    working_dir = path.module
     command = <<EOT
 set -e
 RECREATE_ON_DIFF=${var.recreate_on_diff ? 1 : 0} bash shell/multipass-launch.sh "${self.triggers.name}" "${self.triggers.image}" "${self.triggers.mem}" "${self.triggers.disk}" "${self.triggers.cpus}" "init/k8s.yaml"
@@ -83,6 +86,7 @@ resource "null_resource" "init_cluster" {
   }
 
   provisioner "local-exec" {
+    working_dir = path.module
     command = <<EOT
 set -e
 bash shell/multipass-run-remote.sh "${var.name_prefix}-master-0" "shell/cluster-init.sh" "/home/ubuntu/cluster-init.sh"
@@ -119,6 +123,7 @@ resource "null_resource" "join_all" {
   }
 
   provisioner "local-exec" {
+    working_dir = path.module
     command = <<EOT
 set -e
 NAME_PREFIX="${var.name_prefix}" MASTERS="${var.masters}" WORKERS="${var.workers}" KUBECONFIG_PATH="${var.kubeconfig_path}" bash shell/join-all.sh
