@@ -42,13 +42,15 @@ jobs:
           sudo -n /snap/bin/multipass version
           sudo -n /snap/bin/multipass list || true
 
-      # 실패하든 성공하든 항상 VM 정리
+      # 실패하든 성공하든 테스트 VM만 정리
       - name: Cleanup old test VMs (best effort)
         if: always()
         run: |
           set +e
-          sudo -n /snap/bin/multipass stop --all
-          sudo -n /snap/bin/multipass delete --all
+          for vm in $(sudo -n /snap/bin/multipass list | awk 'NR>1 {print $1}' | grep '^gha-' || true); do
+            sudo -n /snap/bin/multipass stop "$vm" || true
+            sudo -n /snap/bin/multipass delete "$vm" || true
+          done
           sudo -n /snap/bin/multipass purge
           sudo -n /snap/bin/multipass list || true
 
@@ -84,8 +86,9 @@ jobs:
         if: always()
         run: |
           set +e
-          sudo -n /snap/bin/multipass stop --all
-          sudo -n /snap/bin/multipass delete --all
+          for vm in $(sudo -n /snap/bin/multipass list | awk 'NR>1 {print $1}' | grep '^gha-' || true); do
+            sudo -n /snap/bin/multipass stop "$vm" || true
+            sudo -n /snap/bin/multipass delete "$vm" || true
+          done
           sudo -n /snap/bin/multipass purge
           sudo -n /snap/bin/multipass list || true
-

@@ -77,7 +77,7 @@ variable "worker_cpus" {
     condition     = var.worker_cpus >= 1 && floor(var.worker_cpus) == var.worker_cpus
     error_message = "worker_cpus must be an integer (no decimals) and >= 1"
   }
-  
+
 }
 
 variable "master_disk" {

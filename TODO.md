@@ -2,9 +2,10 @@
 
 - shell 에서 #!/usr/bin/env bash 바꾸는 것 해야함.  
 - python3 로 얇게 적용하는 것 bash 와 병용해서 사용하는 것 구현해야함. 이게 깔끔함. python 공부 시작함.  
-- setup-host-rocky8.sh 확인해줘야함.  
+~~- setup-host-rocky8.sh 확인해줘야함.~~  
 - setup-host-rocky8.sh 에 대응하는 삭제 부분도 해줘야 함. 
-- addons 에서 uninstall.sh, install.sh 확인 후 통합해줘야 함.   
+- addons 에서 uninstall.sh, install.sh 확인 후 통합해줘야 함. 
+- registry 올리는 것 확인하기.    
 
 #### Test
 

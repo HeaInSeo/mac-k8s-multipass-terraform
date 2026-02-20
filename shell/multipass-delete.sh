@@ -19,7 +19,7 @@ multipass stop "$name" >/dev/null 2>&1 || true
 echo "[INFO] deleting $name"
 multipass delete --purge "$name"
 
-# (선택) purge가 비동기처럼 지연되는 경우 대비: 사라질 때까지 잠깐 대기
+# purge가 비동기처럼 지연되는 경우 대비: 사라질 때까지 잠깐 대기
 for _ in {1..10}; do
   if ! multipass info "$name" >/dev/null 2>&1; then
     echo "[OK] deleted $name"
