@@ -88,7 +88,7 @@ ensure_multipass() {
   local sock="/var/snap/multipass/common/multipass_socket"
   if [ -S "$sock" ]; then
     local grp
-    grp="$(ls -l "$sock" | awk '{print $4}')"
+    grp="$(stat -c '%G' "$sock")"
     if ! id -nG | tr ' ' '\n' | grep -qx "$grp"; then
       warn "You are not in the Multipass socket group ($grp). Add and re-login:"
       echo "  sudo usermod -aG $grp $USER"
