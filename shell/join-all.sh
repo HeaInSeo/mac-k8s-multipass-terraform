@@ -28,7 +28,7 @@ if [ "${MASTERS}" -gt 1 ]; then
   echo "[INFO] Join control-planes: 1..$((MASTERS - 1))"
   for ((i=1; i<MASTERS; i++)); do
     m="${NAME_PREFIX}-master-${i}"
-    cat "${JOIN_CP_SH}" | multipass exec "${m}" -- sudo bash -c "cat > /home/ubuntu/join-controlplane.sh"
+    < "${JOIN_CP_SH}" multipass exec "${m}" -- sudo bash -c "cat > /home/ubuntu/join-controlplane.sh"
     # multipass exec "${m}" -- bash -lc "chmod +x /home/ubuntu/join-controlplane.sh && sudo bash /home/ubuntu/join-controlplane.sh"
     multipass exec "${m}" -- bash -lc "\
       if [ -f /etc/kubernetes/kubelet.conf ]; then \
@@ -44,7 +44,7 @@ if [ "${WORKERS}" -gt 0 ]; then
   echo "[INFO] Join workers: 0..$((WORKERS - 1))"
   for ((i=0; i<WORKERS; i++)); do
     w="${NAME_PREFIX}-worker-${i}"
-    cat "${JOIN_SH}" | multipass exec "${w}" -- sudo bash -c "cat > /home/ubuntu/join.sh"
+    < "${JOIN_SH}" multipass exec "${w}" -- sudo bash -c "cat > /home/ubuntu/join.sh"
     # multipass exec "${w}" -- bash -lc "chmod +x /home/ubuntu/join.sh && sudo bash /home/ubuntu/join.sh"
     multipass exec "${w}" -- bash -lc "\
       if [ -f /etc/kubernetes/kubelet.conf ]; then \

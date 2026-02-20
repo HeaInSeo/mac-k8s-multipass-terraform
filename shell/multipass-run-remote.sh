@@ -15,7 +15,7 @@ if [ ! -f "$local_script" ]; then
 fi
 
 echo "[INFO] transfer $local_script -> ${vm}:${remote_path} via stdin"
-cat "$local_script" | multipass exec "$vm" -- sudo bash -c "cat > '$remote_path'"
+< "$local_script" multipass exec "$vm" -- sudo bash -c "cat > '$remote_path'"
 
 echo "[INFO] exec on $vm: sudo bash $remote_path"
 # multipass exec "$vm" -- bash -lc "sudo chmod +x '$remote_path' && sudo bash '$remote_path'"
