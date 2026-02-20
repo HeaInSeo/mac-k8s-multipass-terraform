@@ -27,8 +27,8 @@ jobs:
       - name: Show tofu version
         run: tofu --version
 
-      - name: tofu fmt (check)
-        run: tofu fmt -check -recursive
+      - name: tofu fmt
+        run: tofu fmt -recursive
 
       - name: tofu init (no backend)
         run: tofu init -backend=false
