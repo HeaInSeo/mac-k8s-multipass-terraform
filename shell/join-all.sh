@@ -18,9 +18,9 @@ trap cleanup EXIT
 JOIN_SH="${tmpdir}/join.sh"
 JOIN_CP_SH="${tmpdir}/join-controlplane.sh"
 
-echo "[INFO] Fetch join scripts from ${MASTER0}"
-multipass transfer "${MASTER0}":/home/ubuntu/join.sh "${JOIN_SH}"
-multipass transfer "${MASTER0}":/home/ubuntu/join-controlplane.sh "${JOIN_CP_SH}"
+echo "[INFO] Fetch join scripts from ${MASTER0} via stdout"
+multipass exec "${MASTER0}" -- cat /home/ubuntu/join.sh > "${JOIN_SH}"
+multipass exec "${MASTER0}" -- cat /home/ubuntu/join-controlplane.sh > "${JOIN_CP_SH}"
 chmod +x "${JOIN_SH}" "${JOIN_CP_SH}"
 
 # Control-plane join (master-1 .. master-(MASTERS-1))
@@ -28,7 +28,7 @@ if [ "${MASTERS}" -gt 1 ]; then
   echo "[INFO] Join control-planes: 1..$((MASTERS - 1))"
   for ((i=1; i<MASTERS; i++)); do
     m="${NAME_PREFIX}-master-${i}"
-    multipass transfer "${JOIN_CP_SH}" "${m}":/home/ubuntu/join-controlplane.sh
+    cat "${JOIN_CP_SH}" | multipass exec "${m}" -- sudo bash -c "cat > /home/ubuntu/join-controlplane.sh"
     # multipass exec "${m}" -- bash -lc "chmod +x /home/ubuntu/join-controlplane.sh && sudo bash /home/ubuntu/join-controlplane.sh"
     multipass exec "${m}" -- bash -lc "\
       if [ -f /etc/kubernetes/kubelet.conf ]; then \
@@ -44,7 +44,7 @@ if [ "${WORKERS}" -gt 0 ]; then
   echo "[INFO] Join workers: 0..$((WORKERS - 1))"
   for ((i=0; i<WORKERS; i++)); do
     w="${NAME_PREFIX}-worker-${i}"
-    multipass transfer "${JOIN_SH}" "${w}":/home/ubuntu/join.sh
+    cat "${JOIN_SH}" | multipass exec "${w}" -- sudo bash -c "cat > /home/ubuntu/join.sh"
     # multipass exec "${w}" -- bash -lc "chmod +x /home/ubuntu/join.sh && sudo bash /home/ubuntu/join.sh"
     multipass exec "${w}" -- bash -lc "\
       if [ -f /etc/kubernetes/kubelet.conf ]; then \
@@ -63,7 +63,7 @@ multipass exec "${MASTER0}" -- bash -lc "\
   sudo chown ubuntu:ubuntu /home/ubuntu/.kube/config"
 
 mkdir -p "$(dirname "${KUBECONFIG_PATH}")" 2>/dev/null || true
-multipass transfer "${MASTER0}":/home/ubuntu/.kube/config "${KUBECONFIG_PATH}"
+multipass exec "${MASTER0}" -- cat /home/ubuntu/.kube/config > "${KUBECONFIG_PATH}"
 
 echo "[OK] kubeconfig written: ${KUBECONFIG_PATH}"
 echo "     export KUBECONFIG=${KUBECONFIG_PATH}"
