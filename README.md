@@ -17,17 +17,24 @@ chmod +x scripts/host/setup-host-rocky8.sh
 ./scripts/host/setup-host-rocky8.sh
 ```
 
-2. 클러스터 배포
+2. 클러스터 배포 (통합 스크립트)
 ```bash
-tofu init
-tofu plan
-tofu apply -auto-approve
+./scripts/k8s-tool.sh up
 ```
 
 3. 클러스터 확인
 ```bash
-export KUBECONFIG=./kubeconfig
-kubectl get nodes -o wide
+./scripts/k8s-tool.sh status
+```
+
+4. 클러스터 삭제
+```bash
+./scripts/k8s-tool.sh down
+```
+
+5. 로컬 상태 정리
+```bash
+FORCE=1 ./scripts/k8s-tool.sh clean
 ```
 
 ## 디렉터리 구조
@@ -42,7 +49,8 @@ kubectl get nodes -o wide
 │   │   ├── cluster-init.sh      # kubeadm init 실행 (master-0)
 │   │   └── join-all.sh          # master/worker join + kubeconfig export
 │   ├── host/
-│   │   └── setup-host-rocky8.sh # Rocky 8 호스트 준비 스크립트
+│   │   ├── setup-host-rocky8.sh # Rocky 8 호스트 준비 스크립트
+│   │   └── cleanup-host-rocky8.sh # Rocky 8 호스트 정리 스크립트
 │   ├── legacy/
 │   │   └── setup-host-ubuntu.sh # 참고용(지원하지 않음)
 │   ├── multipass/
@@ -51,27 +59,40 @@ kubectl get nodes -o wide
 │   │   ├── multipass-run-remote.sh # 로컬 스크립트를 VM에서 실행
 │   │   ├── delete-vm.sh         # (옵션) 로컬 VM 정리
 │   │   └── mp_spec.py           # Multipass 스펙 확인
-│   └── services/
-│       ├── redis-install.sh     # Redis 패스워드 설정
-│       └── mysql-install.sh     # MySQL 루트/유저/DB 설정
-├── addons/                      # Add-on 설치 스크립트/values
+│   ├── services/
+│   │   ├── redis-install.sh     # Redis 패스워드 설정
+│   │   └── mysql-install.sh     # MySQL 루트/유저/DB 설정
+│   └── k8s-tool.sh              # 통합 클러스터 관리 스크립트
+├── addons/
+│   ├── manage.sh                # Add-on 통합 스크립트
+│   ├── install.sh
+│   ├── uninstall.sh
+│   ├── verify.sh
+│   └── values/
+├── docs/
+│   └── MULTIPASS_IMAGE.md
 ├── main.tf
 ├── variables.tf
-├── dev.auto.tfvars
-└── docs/
+└── dev.auto.tfvars
 ```
 
 ## 변수 설정
 - `variables.tf` 기본값은 Rocky 8 기준으로 설정되어 있습니다.
 - 필요 시 `dev.auto.tfvars`에서 `multipass_image`, `vm_user` 등을 오버라이드하세요.
+- Rocky 8 이미지 확인은 `docs/MULTIPASS_IMAGE.md`를 참고하세요.
 
 ## Add-ons
-Add-on 설치는 `addons/` 디렉터리를 사용합니다.
 ```bash
 cd addons
-./install.sh
-./verify.sh
-./uninstall.sh
+./manage.sh install
+./manage.sh verify
+./manage.sh uninstall
+./manage.sh hosts
+```
+
+## 호스트 정리
+```bash
+FORCE=1 ./scripts/host/cleanup-host-rocky8.sh
 ```
 
 ## 주의 사항
