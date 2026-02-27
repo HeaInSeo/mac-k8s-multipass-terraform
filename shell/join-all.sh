@@ -5,6 +5,8 @@ NAME_PREFIX="${NAME_PREFIX:-k8s}"
 MASTERS="${MASTERS:-3}"
 WORKERS="${WORKERS:-3}"
 KUBECONFIG_PATH="${KUBECONFIG_PATH:-./kubeconfig}"
+VM_USER="${VM_USER:-rocky}"
+VM_HOME="/home/${VM_USER}"
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "missing: $1" >&2; exit 1; }; }
 need multipass
@@ -19,8 +21,8 @@ JOIN_SH="${tmpdir}/join.sh"
 JOIN_CP_SH="${tmpdir}/join-controlplane.sh"
 
 echo "[INFO] Fetch join scripts from ${MASTER0} via stdout"
-multipass exec "${MASTER0}" -- cat /home/ubuntu/join.sh > "${JOIN_SH}"
-multipass exec "${MASTER0}" -- cat /home/ubuntu/join-controlplane.sh > "${JOIN_CP_SH}"
+multipass exec "${MASTER0}" -- cat "${VM_HOME}/join.sh" > "${JOIN_SH}"
+multipass exec "${MASTER0}" -- cat "${VM_HOME}/join-controlplane.sh" > "${JOIN_CP_SH}"
 chmod +x "${JOIN_SH}" "${JOIN_CP_SH}"
 
 # Control-plane join (master-1 .. master-(MASTERS-1))
@@ -28,13 +30,13 @@ if [ "${MASTERS}" -gt 1 ]; then
   echo "[INFO] Join control-planes: 1..$((MASTERS - 1))"
   for ((i=1; i<MASTERS; i++)); do
     m="${NAME_PREFIX}-master-${i}"
-    < "${JOIN_CP_SH}" multipass exec "${m}" -- sudo bash -c "cat > /home/ubuntu/join-controlplane.sh"
-    # multipass exec "${m}" -- bash -lc "chmod +x /home/ubuntu/join-controlplane.sh && sudo bash /home/ubuntu/join-controlplane.sh"
+    < "${JOIN_CP_SH}" multipass exec "${m}" -- sudo bash -c "cat > ${VM_HOME}/join-controlplane.sh"
+    # multipass exec "${m}" -- bash -lc "chmod +x ${VM_HOME}/join-controlplane.sh && sudo bash ${VM_HOME}/join-controlplane.sh"
     multipass exec "${m}" -- bash -lc "\
       if [ -f /etc/kubernetes/kubelet.conf ]; then \
         echo '[INFO] already joined; skip'; \
       else \
-        chmod +x /home/ubuntu/join-controlplane.sh && sudo bash /home/ubuntu/join-controlplane.sh; \
+        chmod +x ${VM_HOME}/join-controlplane.sh && sudo bash ${VM_HOME}/join-controlplane.sh; \
       fi"
   done
 fi
@@ -44,13 +46,13 @@ if [ "${WORKERS}" -gt 0 ]; then
   echo "[INFO] Join workers: 0..$((WORKERS - 1))"
   for ((i=0; i<WORKERS; i++)); do
     w="${NAME_PREFIX}-worker-${i}"
-    < "${JOIN_SH}" multipass exec "${w}" -- sudo bash -c "cat > /home/ubuntu/join.sh"
-    # multipass exec "${w}" -- bash -lc "chmod +x /home/ubuntu/join.sh && sudo bash /home/ubuntu/join.sh"
+    < "${JOIN_SH}" multipass exec "${w}" -- sudo bash -c "cat > ${VM_HOME}/join.sh"
+    # multipass exec "${w}" -- bash -lc "chmod +x ${VM_HOME}/join.sh && sudo bash ${VM_HOME}/join.sh"
     multipass exec "${w}" -- bash -lc "\
       if [ -f /etc/kubernetes/kubelet.conf ]; then \
         echo '[INFO] already joined; skip'; \
       else \
-        chmod +x /home/ubuntu/join.sh && sudo bash /home/ubuntu/join.sh; \
+        chmod +x ${VM_HOME}/join.sh && sudo bash ${VM_HOME}/join.sh; \
       fi"
   done
 fi
@@ -58,12 +60,12 @@ fi
 # Pull kubeconfig to local path
 echo "[INFO] Export kubeconfig from ${MASTER0} -> ${KUBECONFIG_PATH}"
 multipass exec "${MASTER0}" -- bash -lc "\
-  sudo mkdir -p /home/ubuntu/.kube && \
-  sudo cp /etc/kubernetes/admin.conf /home/ubuntu/.kube/config && \
-  sudo chown ubuntu:ubuntu /home/ubuntu/.kube/config"
+  sudo mkdir -p ${VM_HOME}/.kube && \
+  sudo cp /etc/kubernetes/admin.conf ${VM_HOME}/.kube/config && \
+  sudo chown ${VM_USER}:${VM_USER} ${VM_HOME}/.kube/config"
 
 mkdir -p "$(dirname "${KUBECONFIG_PATH}")" 2>/dev/null || true
-multipass exec "${MASTER0}" -- cat /home/ubuntu/.kube/config > "${KUBECONFIG_PATH}"
+multipass exec "${MASTER0}" -- cat "${VM_HOME}/.kube/config" > "${KUBECONFIG_PATH}"
 
 echo "[OK] kubeconfig written: ${KUBECONFIG_PATH}"
 echo "     export KUBECONFIG=${KUBECONFIG_PATH}"

@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
-LOGFILE="/home/ubuntu/redis-install.log"
-exec > >(tee -a $LOGFILE) 2>&1
+VM_USER="${VM_USER:-rocky}"
+LOGFILE="/home/${VM_USER}/redis-install.log"
+exec > >(tee -a "$LOGFILE") 2>&1
 
 echo "[REDIS] Configuring Redis with password..."
 REDIS_CONF="/etc/redis/redis.conf"

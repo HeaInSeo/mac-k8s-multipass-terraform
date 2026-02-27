@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
-LOGFILE="/home/ubuntu/mysql-install.log"
-exec > >(tee -a $LOGFILE) 2>&1
+VM_USER="${VM_USER:-rocky}"
+LOGFILE="/home/${VM_USER}/mysql-install.log"
+exec > >(tee -a "$LOGFILE") 2>&1
 
 echo "[MYSQL] Securing MySQL installation..."
 

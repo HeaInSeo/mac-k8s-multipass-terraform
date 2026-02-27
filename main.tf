@@ -89,7 +89,7 @@ resource "null_resource" "init_cluster" {
     working_dir = path.module
     command     = <<EOT
 set -e
-bash shell/multipass-run-remote.sh "${var.name_prefix}-master-0" "shell/cluster-init.sh" "/home/ubuntu/cluster-init.sh"
+VM_USER="${var.vm_user}" bash shell/multipass-run-remote.sh "${var.name_prefix}-master-0" "shell/cluster-init.sh" "/home/${var.vm_user}/cluster-init.sh"
 EOT
   }
 }
@@ -126,7 +126,7 @@ resource "null_resource" "join_all" {
     working_dir = path.module
     command     = <<EOT
 set -e
-NAME_PREFIX="${var.name_prefix}" MASTERS="${var.masters}" WORKERS="${var.workers}" KUBECONFIG_PATH="${var.kubeconfig_path}" bash shell/join-all.sh
+NAME_PREFIX="${var.name_prefix}" MASTERS="${var.masters}" WORKERS="${var.workers}" KUBECONFIG_PATH="${var.kubeconfig_path}" VM_USER="${var.vm_user}" bash shell/join-all.sh
 EOT
   }
 }

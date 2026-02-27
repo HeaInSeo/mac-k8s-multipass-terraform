@@ -3,7 +3,8 @@ set -euo pipefail
 
 vm="${1:?vm required}"
 local_script="${2:?local script required}"
-remote_path="${3:-/home/ubuntu/remote.sh}"
+VM_USER="${VM_USER:-rocky}"
+remote_path="${3:-/home/${VM_USER}/remote.sh}"
 
 if ! command -v multipass >/dev/null 2>&1; then
   echo "multipass not found" >&2
@@ -19,5 +20,5 @@ echo "[INFO] transfer $local_script -> ${vm}:${remote_path} via stdin"
 
 echo "[INFO] exec on $vm: sudo bash $remote_path"
 # multipass exec "$vm" -- bash -lc "sudo chmod +x '$remote_path' && sudo bash '$remote_path'"
-multipass exec "$vm" -- bash -lc "sudo chmod +x '$remote_path' && sudo ALLOW_SCHEDULE_ON_CP=1 bash '$remote_path'"
+multipass exec "$vm" -- bash -lc "sudo chmod +x '$remote_path' && sudo VM_USER='${VM_USER}' ALLOW_SCHEDULE_ON_CP=1 bash '$remote_path'"
 echo "[OK] ran $local_script on $vm"

@@ -9,9 +9,9 @@ variable "name_prefix" {
 }
 
 variable "multipass_image" {
-  description = "Multipass에서 사용할 Ubuntu 이미지 버전"
+  description = "Multipass에서 사용할 Rocky Linux 8 이미지 이름"
   type        = string
-  default     = "24.04"
+  default     = "rocky-8"
   validation {
     condition     = length(trimspace(var.multipass_image)) > 0
     error_message = "multipass_image must not be empty"
@@ -114,4 +114,14 @@ variable "recreate_on_diff" {
   description = "VM이 이미 존재할 때 스펙(mem/cpu/disk 등)이 다르면 삭제 후 재생성할지 여부"
   type        = bool
   default     = false
+}
+
+variable "vm_user" {
+  description = "VM 기본 사용자 계정 (Rocky 8 기본: rocky)"
+  type        = string
+  default     = "rocky"
+  validation {
+    condition     = can(regex("^[a-z_][a-z0-9_-]*$", var.vm_user))
+    error_message = "vm_user must be a valid Linux username"
+  }
 }
