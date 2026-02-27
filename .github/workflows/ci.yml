@@ -56,9 +56,9 @@ jobs:
       - name: Run shellcheck (best-effort)
         run: |
           set -euo pipefail
-          shopt -s nullglob
+          shopt -s nullglob globstar
 
-          files=( *.sh shell/*.sh scripts/*.sh )
+          files=( *.sh addons/*.sh scripts/*.sh scripts/**/*.sh )
           if [ ${#files[@]} -eq 0 ]; then
             echo "No shell scripts found; skip."
             exit 0

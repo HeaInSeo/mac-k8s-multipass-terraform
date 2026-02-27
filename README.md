@@ -70,7 +70,11 @@ FORCE=1 ./scripts/k8s-tool.sh clean
 │   ├── verify.sh
 │   └── values/
 ├── docs/
-│   └── MULTIPASS_IMAGE.md
+│   ├── MULTIPASS_IMAGE.md
+│   ├── ADDONS_TEST.md
+│   ├── REGISTRY_FLOW.md
+│   ├── MP_SPEC_GUIDE.md
+│   └── ARCH_REVIEW.md
 ├── main.tf
 ├── variables.tf
 └── dev.auto.tfvars
@@ -94,6 +98,12 @@ cd addons
 ```bash
 FORCE=1 ./scripts/host/cleanup-host-rocky8.sh
 ```
+
+## 참고 문서
+- `docs/ADDONS_TEST.md`
+- `docs/REGISTRY_FLOW.md`
+- `docs/MP_SPEC_GUIDE.md`
+- `docs/ARCH_REVIEW.md`
 
 ## 주의 사항
 - Rocky Linux 8 환경을 기준으로만 지원합니다.
