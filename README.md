@@ -1,199 +1,79 @@
-# Kubernetes Multi-Node Cluster (Multipass + OpenTofu/Terraform)
+# mac-k8s-multipass-terraform
 
-
-
-해당 프로젝트는 **macOS (M1/M2 포함)** 환경에서 기존 UTM 기반으로 설치하는 방법 대신 Multipass, Terraform을 이용하여 다음과 같은 **Kubernetes 멀티 노드 클러스터 환경**을 자동으로 구축하는데 그 목적을 둔다.
-
-추가적으로, Ubutnu 환경을 추가하였고, Multipass VM 위에 `kubeadm` 기반 멀티 노드 Kubernetes 클러스터를 구성한다. Multipass 전용 Terraform/OpenTofu provider가 사실상 표준으로 자리잡지 않은 환경을 고려해, **`null_resource + local-exec`** 방식으로 VM 생성/삭제/초기화/조인을 자동화 한다.
+이 프로젝트는 **Rocky Linux 8** 환경에서 Multipass와 OpenTofu를 이용해 **kubeadm 기반 멀티 노드 Kubernetes 클러스터**를 자동으로 구성하는 테스트 도구입니다. 운영 대상은 호스트와 VM 모두 Rocky Linux 8입니다.
 
 ## 요구 사항
+- Rocky Linux 8 (호스트)
+- OpenTofu >= 1.6
+- Multipass
+- bash
+- 선택: kubectl
+- 선택: helm
 
-필수:
-- **OpenTofu >= 1.6** (또는 Terraform >= 1.6)
-- **Multipass**
-- `bash`
-
-권장(클러스터 확인/운영):
-- `kubectl`
-
-Add-on(선택):
-- `helm`
-- `istioctl` (Istio 설치 시)
-
-## 사전 설치 사항 (삭제 요암 일단 남겨둠.)
-- Terraform v1.11.3 이상 : [Terraform 설치 링크](https://developer.hashicorp.com/terraform/install)
-- multipass v1.15.1+mac : [multipass 설치 링크](https://canonical.com/multipass)
-- istioctl v1.26.2 :  [istioctl 설치 링크](https://formulae.brew.sh/formula/istioctl)
-- helm : [helm 설치 링크](https://helm.sh/ko/docs/intro/install/)
-
-## 구성 요소 (삭제 요망 일단 남겨둠.)
-| 구성 요소 | 수량 | 설명 |
-|-----------|------|------|
-| Control Plane (Master) | 3대 | 고가용성 멀티 마스터 |
-| Worker Node | 6대 | 서비스 워크로드 처리 |
-| Redis VM | 1대 | Kubernetes 외부 Redis (패스워드 설정 포함) |
-| MySQL VM | 1대 | Kubernetes 외부 MySQL (DB/계정 자동 생성 포함) |
-| Flannel | ✅ | Pod 간 통신을 위한 CNI 플러그인 |
-| Terraform | ✅ | 인프라 정의 및 상태 관리 |
-| Multipass | ✅ | 로컬 VM 기반 클러스터 실행 |
-
-## 구조
-```
-.
-├── init/
-│   ├── k8s.yaml                # K8s용 cloud-init
-│   ├── redis.yaml              # Redis VM용 cloud-init
-│   └── mysql.yaml              # MySQL VM용 cloud-init
-├── shell/
-|   ├── multipass-launch.sh     # VM 생성 래퍼
-│   ├── multipass-delete.sh     # VM 삭제 래퍼(개별 VM만)
-│   ├── multipass-run-remote.sh # 로컬 스크립트를 VM에서 실행
-│   ├── cluster-init.sh         # kubeadm init 실행 (master-0에서 실행)
-│   ├── join-all.sh             # # master/worker join + kubeconfig export
-│   ├── delete-vm.sh            # (옵션) 로컬 VM 정리 스크립트
-│   ├── redis-install.sh        # Redis 패스워드 설정
-│   └── mysql-install.sh        # MySQL 루트/유저/DB 설정
-├── main.tf                     # Terraform 메인 구성
-├── variables.tf                # Redis/MySQL 계정/포트 변수
-├── README.md                   # 사용 설명서
-└── dev.auto.tfvars             # (선택) 개발용 설정 자동 로드
-```
-
-## 설치 방법
-
-### 1. 초기화 및 배포
+## 빠른 시작
+1. 호스트 준비
 ```bash
-terraform init && terraform plan
-terraform apply -auto-approve
+chmod +x scripts/host/setup-host-rocky8.sh
+./scripts/host/setup-host-rocky8.sh
+```
 
-# 또는 현재 opentofu 적용 가능
-tofu fmt
+2. 클러스터 배포
+```bash
 tofu init
+tofu plan
 tofu apply -auto-approve
-
 ```
-### 2. 전체 삭제 
-```bash
-terraform destroy -auto-approve
-rm -rf .terraform .terraform.lock.hcl terraform.tfstate* kubeconfig
 
-# 또는 opentofu
-tofu destroy -auto-approve
-# 로컬 파일 정리(지우면 로컬 파일이 다 삭제됨.)
-rm -rf .terraform .terraform.lock.hcl tofu.tfstate* tofu.tfstate.d kubeconfig
-
-```
-⚠️ 주의: delete-vm.sh 같은 스크립트는 구현에 따라 “전체 VM 삭제”가 될 수 있으니,
-실행 전에 반드시 내용을 확인해야함.(특히 multipass delete --all / multipass purge).
-
-## 🔐 Redis/MySQL 접속 정보
-
-Terraform `variables.tf` 에 정의된 기본값 기준으로 세팅
-
-### Redis
-- Host: `redis` VM IP
-- Port: `6379`
-- Password: `redispass`
-
-### MySQL
-- Host: `mysql` VM IP
-- Port: `3306`
-- User: `finalyzer`
-- Password: `finalyzerpass`
-- Database: `finalyzer`
-
-### kubeconfig 사용
-- join-all.sh 실행 후 kubeconfig_path에 kubeconfig가 생성된다.
-
+3. 클러스터 확인
 ```bash
 export KUBECONFIG=./kubeconfig
 kubectl get nodes -o wide
-
-```
----
-
-# 🔧 Add-ons 설치 가이드 (`addon`)
-
-이 프로젝트는 로컬 Mac 환경의 Kubernetes 클러스터에 다양한 Add-on(Observability, GitOps, Security 등)을 설치하고 설정하기 위한 자동화된 스크립트를 제공합니다. 모든 Add-on은 Helm Chart와 `values/` 디렉토리에 정의된 설정 파일 기반으로 설치됩니다.
-
-## 📁 디렉토리 구조
-
-```
-addon/
-├── install.sh               # 전체 Add-on을 순차 설치하는 스크립트
-├── uninstall.sh             # 전체 Add-on을 제거하는 스크립트
-├── verify.sh                # Add-on 설치 여부 및 접근성 확인 스크립트
-├── hosts.generated          # xxx.bocopile.io 도메인용 hosts 매핑 파일
-└── values/                  # Helm values.yaml 모음
-    ├── argocd/
-    ├── istio/
-    ├── logging/
-    ├── metallb/
-    ├── monitoring/
-    ├── tracing/
-    └── vault/
 ```
 
-## 🚀 설치 방법
+## 디렉터리 구조
+```
+.
+├── cloud-init/
+│   ├── k8s.yaml                # K8s용 cloud-init
+│   ├── redis.yaml              # Redis VM용 cloud-init
+│   └── mysql.yaml              # MySQL VM용 cloud-init
+├── scripts/
+│   ├── cluster/
+│   │   ├── cluster-init.sh      # kubeadm init 실행 (master-0)
+│   │   └── join-all.sh          # master/worker join + kubeconfig export
+│   ├── host/
+│   │   └── setup-host-rocky8.sh # Rocky 8 호스트 준비 스크립트
+│   ├── legacy/
+│   │   └── setup-host-ubuntu.sh # 참고용(지원하지 않음)
+│   ├── multipass/
+│   │   ├── multipass-launch.sh  # VM 생성 래퍼
+│   │   ├── multipass-delete.sh  # VM 삭제 래퍼
+│   │   ├── multipass-run-remote.sh # 로컬 스크립트를 VM에서 실행
+│   │   ├── delete-vm.sh         # (옵션) 로컬 VM 정리
+│   │   └── mp_spec.py           # Multipass 스펙 확인
+│   └── services/
+│       ├── redis-install.sh     # Redis 패스워드 설정
+│       └── mysql-install.sh     # MySQL 루트/유저/DB 설정
+├── addons/                      # Add-on 설치 스크립트/values
+├── main.tf
+├── variables.tf
+├── dev.auto.tfvars
+└── docs/
+```
 
-### 1. 사전 조건
-- Kubernetes 클러스터가 로컬에서 실행 중이어야 함 (multipass + kubeadm 기반)
-- `xxx.bocopile.io` 도메인에 대한 hosts 매핑 필요 (`/etc/hosts`)
+## 변수 설정
+- `variables.tf` 기본값은 Rocky 8 기준으로 설정되어 있습니다.
+- 필요 시 `dev.auto.tfvars`에서 `multipass_image`, `vm_user` 등을 오버라이드하세요.
 
-### 2. Add-on 일괄 설치
-
+## Add-ons
+Add-on 설치는 `addons/` 디렉터리를 사용합니다.
 ```bash
-cd addon
+cd addons
 ./install.sh
-```
-
-> MetalLB -> my-local-path-provisioner ->  Istio →  ArgoCD → Vault → Monitoring → Logging → Tracing -> vault  순으로 설치됩니다.  
-> 설치 후 host 파일을 추가해야 `*.bocopile.io` 형태의 로컬 도메인으로 각 서비스에 접속할 수 있습니다.
-
-### 3. 설치 확인
-
-```bash
 ./verify.sh
-```
-
-서비스별 도메인 응답 여부, Pod 상태 등을 자동 확인합니다.
-
-### 4. 전체 삭제
-
-```bash
 ./uninstall.sh
 ```
 
-모든 Add-on 리소스를 제거합니다.
-
-## 🧩 포함된 Add-on 목록
-
-| Add-on    | 설명 |
-|-----------|------|
-| **Istio** | Service Mesh, Ingress Gateway 및 mTLS 설정 포함 |
-| **ArgoCD** | GitOps 기반 애플리케이션 배포 관리 |
-| **Vault** | 인증서 및 시크릿 자동 관리 시스템 |
-| **Prometheus-Grafana** | 모니터링 대시보드 및 메트릭 수집 |
-| **Loki-Promtail** | 로그 수집 및 검색 |
-| **Jaeger, Kiali, OpenTelemetry** | 트레이싱 및 Service Mesh 시각화 도구 |
-| **MetalLB** | 로컬 환경에서 LoadBalancer 형태 지원을 위한 IP 제공 |
-
-## 🌐 로컬 도메인 설정
-
-`install.sh` 실행 시 자동 생성되는 `hosts.generated` 파일을 `/etc/hosts`에 반영해야 각 서비스에 브라우저 접속이 가능합니다.
-
-```bash
-sudo cp hosts.generated /etc/hosts
-```
-
-> 예시:  
-> `http://grafana.bocopile.io`  
-> `https://argocd.bocopile.io`
-
-## 🔒 TLS 및 인증서
-
-Istio Gateway와 Vault를 활용하여 TLS 및 인증서 자동 관리 구조로 확장 가능합니다. `vault-values.yaml`과 `istio-values.yaml`을 커스터마이징하여 원하는 도메인 및 인증 흐름을 구성하세요.
-
-## 📎 Helm values 커스터마이징
-
-각 Add-on은 `values/<addon>` 디렉토리에 별도의 values.yaml이 존재하며, 도메인명, 인증 여부, 리소스 설정 등을 자유롭게 수정할 수 있습니다.
+## 주의 사항
+- Rocky Linux 8 환경을 기준으로만 지원합니다.
+- Ubuntu 기반 스크립트는 `scripts/legacy/`에 보관되며 유지보수 대상이 아닙니다.
