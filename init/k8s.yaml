@@ -2,12 +2,15 @@
 package_update: true
 package_upgrade: true
 packages:
-  - apt-transport-https
+  - dnf-plugins-core
   - ca-certificates
   - curl
-  - gnupg
-  - lsb-release
-  - containerd
+  - gnupg2
+  - iproute-tc
+  - socat
+  - conntrack
+  - ebtables
+  - ethtool
   - net-tools
 
 write_files:
@@ -19,30 +22,49 @@ write_files:
   - path: /etc/sysctl.d/99-k8s.conf
     content: |
       net.bridge.bridge-nf-call-iptables = 1
-      net.ipv4.ip_forward = 1
       net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward = 1
+      fs.inotify.max_user_instances = 8192
+      fs.inotify.max_user_watches = 524288
+      vm.swappiness = 0
+
+  - path: /etc/yum.repos.d/kubernetes.repo
+    content: |
+      [kubernetes]
+      name=Kubernetes
+      baseurl=https://pkgs.k8s.io/core:/stable:/v1.32/rpm/
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://pkgs.k8s.io/core:/stable:/v1.32/rpm/repodata/repomd.xml.key
+      exclude=kubelet kubeadm kubectl
 
 runcmd:
   # Disable swap (required by kubelet defaults)
   - swapoff -a
-  # Persist: comment out any swap entries in /etc/fstab (e.g., /swapfile)
+  # Persist: comment out any swap entries in /etc/fstab
   - sed -ri '/\sswap\s/s/^#?/#/' /etc/fstab
   - grep -nE '\sswap\s' /etc/fstab || true
-  # Persist (systemd): mask any swap units (e.g., swapfile.swap, dev-*.swap)
+  # Persist (systemd): mask any swap units
   - systemctl list-units --type=swap --all --no-legend | awk '{print $1}' | xargs -r systemctl mask --now
   - systemctl list-units --type=swap --all --no-pager || true
+
+  # SELinux: permissive for kubelet defaults
+  - setenforce 0 || true
+  - sed -i 's/^SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
+
+  # Kernel modules and sysctl
   - modprobe overlay
   - modprobe br_netfilter
   - sysctl --system
-  - mkdir -p /etc/apt/keyrings
-  - curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-  - echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /" > /etc/apt/sources.list.d/kubernetes.list
-  - apt-get update
-  - apt-get install -y kubelet kubeadm kubectl
-  - apt-mark hold kubelet kubeadm kubectl
+
+  # Containerd from Docker repo (Rocky 8 compatible)
+  - dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+  - dnf -y install containerd.io
   - mkdir -p /etc/containerd
   - containerd config default > /etc/containerd/config.toml
   - sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
-  - systemctl restart containerd
-  - systemctl enable containerd
-  - systemctl enable kubelet
+  - systemctl enable --now containerd
+
+  # Kubernetes packages (v1.32)
+  - dnf -y install kubelet kubeadm kubectl --disableexcludes=kubernetes
+  - systemctl enable --now kubelet
